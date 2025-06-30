@@ -1,0 +1,65 @@
+name: "Setup Devbox"
+description: "use jetify-com/devbox-install-action but correctly restore and save the nix store cache"
+
+inputs:
+  devbox-lock-path:
+    description: "Path to the devbox.lock file"
+    required: false
+    default: "devbox.lock"
+
+runs:
+  using: composite
+  steps:
+    - name: Get devbox.lock hash
+      id: devbox-lock-hash
+      shell: bash
+      run: echo "hash=$(sha256sum ${{ inputs.devbox-lock-path }} | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
+    # https://github.com/jetify-com/devbox-install-action/blob/main/action.yml#L113C1-L129C11
+    - name: Workaround nix store cache permission issue
+      shell: bash
+      run: |
+        mkdir -p ~/.cache
+        mkdir -p ~/.local/bin
+        echo "#!/bin/sh" >> ~/.local/bin/tar
+        echo 'exec sudo /usr/bin/tar "$@"' >> ~/.local/bin/tar
+        sudo chmod +x ~/.local/bin/tar
+
+    # https://github.com/jetify-com/devbox-install-action/blob/main/action.yml#L159
+    - name: Mount nix store cache
+      id: cache-devbox-nix-store
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ~/.cache/devbox
+          ~/.cache/nix
+          ~/.local/state/nix
+          ~/.nix-defexpr
+          ~/.nix-profile
+          /nix/store
+          /nix/var/nix
+        key: ${{ runner.os }}-${{ runner.arch }}-devbox-nix-store-${{ steps.devbox-lock-hash.outputs.hash }}
+
+    - name: Install devbox
+      uses: jetify-com/devbox-install-action@v0.13.0
+      with:
+        devbox-version: 0.14.0
+
+    # https://github.com/jetify-com/devbox-install-action/blob/main/action.yml#L188C1-L211C11
+    - name: Save nix store cache
+      if: steps.cache-devbox-nix-store.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      with:
+        path: |
+          ~/.cache/devbox
+          ~/.cache/nix
+          ~/.local/state/nix
+          ~/.nix-defexpr
+          ~/.nix-profile
+          /nix/store
+          /nix/var/nix
+        key: ${{ runner.os }}-${{ runner.arch }}-devbox-nix-store-${{ steps.devbox-lock-hash.outputs.hash }}
+
+    - name: Restore tar command
+      shell: bash
+      run: rm ~/.local/bin/tar
