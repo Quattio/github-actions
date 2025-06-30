@@ -1,3 +1,7 @@
+# Devbox install causes the lockfile to always update to the latest versions of packages
+# this breaks caching as the hash of the lockfile after install will be different then before install
+# see: https://github.com/jetify-com/devbox/issues/2562
+
 name: "Setup Devbox"
 description: "use jetify-com/devbox-install-action but correctly restore and save the nix store cache"
 
