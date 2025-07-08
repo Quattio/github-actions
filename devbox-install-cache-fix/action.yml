@@ -6,10 +6,10 @@ name: "Setup Devbox"
 description: "use jetify-com/devbox-install-action but correctly restore and save the nix store cache"
 
 inputs:
-  devbox-lock-path:
-    description: "Path to the devbox.lock file"
+  project-path:
+    description: "Path to the project directory containing the devbox.lock file"
     required: false
-    default: "devbox.lock"
+    default: "."
 
 runs:
   using: composite
@@ -17,7 +17,7 @@ runs:
     - name: Get devbox.lock hash
       id: devbox-lock-hash
       shell: bash
-      run: echo "hash=$(sha256sum ${{ inputs.devbox-lock-path }} | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+      run: echo "hash=$(sha256sum ${{ inputs.project-path }}/devbox.lock | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
     # https://github.com/jetify-com/devbox-install-action/blob/main/action.yml#L113C1-L129C11
     - name: Workaround nix store cache permission issue
@@ -48,6 +48,7 @@ runs:
       uses: jetify-com/devbox-install-action@v0.13.0
       with:
         devbox-version: 0.14.0
+        project-path: ${{ inputs.project-path }}
 
     # https://github.com/jetify-com/devbox-install-action/blob/main/action.yml#L188C1-L211C11
     - name: Save nix store cache
